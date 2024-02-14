@@ -83,8 +83,6 @@ let req = Request::builder()
         .header("content-type", "application/json")
         .body(Full::new(Bytes::from(full_body.clone())))
         .unwrap();
-         // If Redis is available, store the fetched data in Redis
-     // If Redis is available, store the fetched data in Redis
   if let Some(mut connection) = redis_pool.get().await.ok() {
     let _: () = connection
         .set("users", full_body)
