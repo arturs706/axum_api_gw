@@ -12,10 +12,42 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use tower_cookies::{Cookie, Cookies};
+use deadpool_redis::{Pool, Connection};
+use redis::AsyncCommands;
+
 
 #[debug_handler]
-pub async fn fetchusershandler(headers: HeaderMap) -> Result<Response<Full<Bytes>>, Infallible> {
-let url = "http://localhost:8080/api/v1/users".parse::<hyper::Uri>().unwrap();
+pub async fn fetchusershandler(redis_pool: axum::extract::Extension<Pool>, headers: HeaderMap) -> Result<Response<Full<Bytes>>, Infallible> {
+let mut conn: Connection = match redis_pool.get().await {
+    Ok(conn) => conn,
+    Err(e) => {
+        return Ok(Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Full::new(Bytes::from(format!("Error getting connection from pool: {}", e))))
+            .unwrap());
+    }
+};
+let users: Option<String> = match conn.get("users").await {
+    Ok(users) => users,
+    Err(e) => {
+        return Ok(Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(Full::new(Bytes::from(format!("Error getting users from redis: {}", e))))
+            .unwrap());
+    }
+};
+match users {
+    Some(users) => {
+        let response = Response::builder()
+            .status(StatusCode::OK)
+            .header("content-type", "application/json")
+            .body(Full::new(Bytes::from(users)))
+            .unwrap();
+        Ok(response)
+    }
+    None => {
+
+let url = "http://localhost:10001/api/v1/users".parse::<hyper::Uri>().unwrap();
 let host = url.host().expect("uri has no host");
 let port = url.port_u16().unwrap_or(80);
 let address = format!("{}:{}", host, port);
@@ -49,10 +81,21 @@ let req = Request::builder()
     let response = Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "application/json")
-        .body(Full::new(Bytes::from(full_body)))
+        .body(Full::new(Bytes::from(full_body.clone())))
         .unwrap();
+         // If Redis is available, store the fetched data in Redis
+     // If Redis is available, store the fetched data in Redis
+  if let Some(mut connection) = redis_pool.get().await.ok() {
+    let _: () = connection
+        .set("users", full_body)
+        .await
+        .expect("Error setting users in redis");
+}
 
+    
     Ok(response)
+}
+}
 }
 
 
