@@ -47,7 +47,7 @@ match users {
     }
     None => {
 
-let url = "http://localhost:10001/api/v1/users".parse::<hyper::Uri>().unwrap();
+let url = "http://192.168.1.35:10001/api/v1/users".parse::<hyper::Uri>().unwrap();
 let host = url.host().expect("uri has no host");
 let port = url.port_u16().unwrap_or(80);
 let address = format!("{}:{}", host, port);
@@ -97,11 +97,9 @@ let req = Request::builder()
 }
 
 
-
-
 #[debug_handler]
 pub async fn login_user(cookies: Cookies, headers: HeaderMap, request: Request<Body>) -> Result<Response<Full<Bytes>>, Infallible> {
-let url = "http://localhost:8080/api/v1/users/login".parse::<hyper::Uri>().unwrap();
+let url = "http://192.168.1.35:10001/api/v1/users/login".parse::<hyper::Uri>().unwrap();
 let host = url.host().expect("uri has no host");
 let port = url.port_u16().unwrap_or(80);
 let address = format!("{}:{}", host, port);
