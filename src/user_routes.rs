@@ -1,5 +1,5 @@
 use std::convert::Infallible;
-use axum::{body::Body, response::Response};
+use axum::{body::Body, extract::State, response::Response};
 use http_body_util::{Empty, Full};
 use hyper::Request;
 use hyper::body::Bytes;
@@ -15,10 +15,12 @@ use tower_cookies::{Cookie, Cookies};
 use deadpool_redis::{Pool, Connection};
 use redis::AsyncCommands;
 
+use crate::AppState;
+
 
 #[debug_handler]
-pub async fn fetchusershandler(redis_pool: axum::extract::Extension<Pool>, headers: HeaderMap) -> Result<Response<Full<Bytes>>, Infallible> {
-let mut conn: Connection = match redis_pool.get().await {
+pub async fn fetchusershandler(state: State<AppState>, headers: HeaderMap) -> Result<Response<Full<Bytes>>, Infallible> {
+let mut conn: Connection = match state.redis_pool.get().await {
     Ok(conn) => conn,
     Err(e) => {
         return Ok(Response::builder()
@@ -46,8 +48,8 @@ match users {
         Ok(response)
     }
     None => {
-
-let url = "http://192.168.1.35:10001/api/v1/users".parse::<hyper::Uri>().unwrap();
+        
+let url = "http://90.247.64.249:8181/api/v1/users".parse::<hyper::Uri>().unwrap();
 let host = url.host().expect("uri has no host");
 let port = url.port_u16().unwrap_or(80);
 let address = format!("{}:{}", host, port);
@@ -83,12 +85,12 @@ let req = Request::builder()
         .header("content-type", "application/json")
         .body(Full::new(Bytes::from(full_body.clone())))
         .unwrap();
-  if let Some(mut connection) = redis_pool.get().await.ok() {
-    let _: () = connection
-        .set("users", full_body)
-        .await
-        .expect("Error setting users in redis");
-}
+    if let Some(mut connection) = state.redis_pool.get().await.ok() {
+        let _: () = connection
+            .set("users", full_body)
+            .await
+            .expect("Error setting users in redis");
+    }
 
     
     Ok(response)
@@ -99,7 +101,7 @@ let req = Request::builder()
 
 #[debug_handler]
 pub async fn login_user(cookies: Cookies, headers: HeaderMap, request: Request<Body>) -> Result<Response<Full<Bytes>>, Infallible> {
-let url = "http://192.168.1.35:10001/api/v1/users/login".parse::<hyper::Uri>().unwrap();
+let url = "http://localhost:10001/api/v1/users/login".parse::<hyper::Uri>().unwrap();
 let host = url.host().expect("uri has no host");
 let port = url.port_u16().unwrap_or(80);
 let address = format!("{}:{}", host, port);

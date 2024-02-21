@@ -1,15 +1,25 @@
 mod mware;
 mod user_routes;
-use axum::{http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method}, middleware, routing::{get, post}, Extension};
+use axum::{http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method}, middleware, routing::{get, post}, Extension, Router};
 use dotenv::dotenv;
 use tower_cookies::CookieManagerLayer;
 use tower_http::cors::CorsLayer;
 use deadpool_redis::{Pool, Runtime, Config};
 use std::time::Duration;
+mod unit_tests;
 
 
 type DeadpoolPool = Pool;
 
+#[derive(Clone)]
+pub struct AppState {
+    pub redis_pool: DeadpoolPool,
+}
+
+#[derive(Clone)]
+pub struct RedisPool {
+    pub pool: DeadpoolPool,
+}
 
 // const PREFIX: &str = "with_deadpool";
 // const TTL: usize = 60 * 5;
@@ -32,26 +42,31 @@ pub fn create_pool() -> Result<DeadpoolPool, String> {
         .map_err(|e| e.to_string())
 }
 
-
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
+pub(crate) fn new_app() -> Router {
     let cors = CorsLayer::new()
     .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
     .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
     .allow_credentials(true)
     .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
     let redis_pool_data = create_pool().unwrap();
-
-    let app = axum::Router::new()
+    let state = AppState {
+        redis_pool: redis_pool_data.clone(),
+    };
+    Router::new()
         .route("/api/v1", get(user_routes::fetchusershandler))
-        .route("/api/v1/login", post(user_routes::login_user))
+        .route("/api/v1", post(user_routes::login_user))
         .layer(cors)
         .layer(CookieManagerLayer::new())
         .layer(middleware::from_fn(mware::add_token))
-        .layer(Extension(redis_pool_data));
-        
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:10000").await.unwrap();
+        .with_state(state)
+}
+
+
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+    let app = new_app(); 
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:9999").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
