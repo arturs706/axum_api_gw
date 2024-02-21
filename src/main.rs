@@ -1,6 +1,6 @@
 mod mware;
 mod user_routes;
-use axum::{http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method}, middleware, routing::{get, post}, Extension, Router};
+use axum::{http::{header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE}, HeaderValue, Method}, middleware, routing::{get, post}, Router};
 use dotenv::dotenv;
 use tower_cookies::CookieManagerLayer;
 use tower_http::cors::CorsLayer;

@@ -12,7 +12,7 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use tower_cookies::{Cookie, Cookies};
-use deadpool_redis::{Pool, Connection};
+use deadpool_redis::Connection;
 use redis::AsyncCommands;
 
 use crate::AppState;
